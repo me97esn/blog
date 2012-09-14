@@ -12,7 +12,7 @@ gem "rack-nocache"
 # Ultraviolet. God what a pain.
 gem 'plist', :git => "git://github.com/spox/plist.git"
 gem 'textpow', :git => "git://github.com/spox/textpow.git"
-gem 'ultraviolet', :git => "git://github.com/hornairs/ultraviolet.git", :require => 'uv'
+gem 'ultraviolet1x', :require => 'uv'
 
 group :production do
   gem 'newrelic_rpm'
@@ -23,5 +23,6 @@ group :development, :test do
   gem 'guard'
   gem 'guard-coffeescript'
   gem 'guard-compass'
+  gem 'thin'
   gem 'growl'
 end
