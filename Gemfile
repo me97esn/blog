@@ -14,6 +14,8 @@ gem 'plist', :git => "git://github.com/spox/plist.git"
 gem 'textpow', :git => "git://github.com/spox/textpow.git"
 gem 'ultraviolet1x', :require => 'uv'
 
+gem 'sprockets'
+
 group :production do
   gem 'newrelic_rpm'
   gem 'thin'

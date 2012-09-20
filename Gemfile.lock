@@ -35,6 +35,7 @@ GEM
       compass (>= 0.10.5)
       guard (>= 0.2.1)
     haml (3.0.25)
+    hike (1.2.1)
     multi_json (1.0.3)
     newrelic_rpm (3.1.0)
     nokogiri (1.5.0)
@@ -46,6 +47,11 @@ GEM
     rack-rewrite (1.0.2)
     rdiscount (1.6.8)
     spox-plist (3.0.1)
+    sprockets (2.4.3)
+      hike (~> 1.2)
+      multi_json (~> 1.0)
+      rack (~> 1.0)
+      tilt (~> 1.1, != 1.3.0)
     textpow1x (1.2.4)
       plist (>= 3.0.1)
     thin (1.3.1)
@@ -76,6 +82,7 @@ DEPENDENCIES
   rack-codehighlighter
   rack-nocache
   rack-rewrite
+  sprockets
   textpow!
   thin
   tilt

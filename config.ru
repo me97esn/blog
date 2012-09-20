@@ -68,6 +68,13 @@ toto = Toto::Server.new do
 
 end
 
+map '/assets' do
+  environment = Sprockets::Environment.new
+  environment.append_path 'assets/coffeescripts'
+  environment.append_path 'assets/sass'
+  run environment
+end
+
 map "/" do
   run toto
 end
