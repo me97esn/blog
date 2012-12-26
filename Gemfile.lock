@@ -46,6 +46,7 @@ GEM
     rack-nocache (0.1.0)
     rack-rewrite (1.0.2)
     rdiscount (1.6.8)
+    sass (3.1.20)
     spox-plist (3.0.1)
     sprockets (2.4.3)
       hike (~> 1.2)
@@ -82,6 +83,7 @@ DEPENDENCIES
   rack-codehighlighter
   rack-nocache
   rack-rewrite
+  sass
   sprockets
   textpow!
   thin

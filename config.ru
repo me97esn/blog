@@ -72,6 +72,7 @@ map '/assets' do
   environment = Sprockets::Environment.new
   environment.append_path 'assets/coffeescripts'
   environment.append_path 'assets/sass'
+  environment.append_path 'assets/vendor'
   run environment
 end
 

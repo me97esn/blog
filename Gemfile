@@ -15,6 +15,7 @@ gem 'textpow', :git => "git://github.com/spox/textpow.git"
 gem 'ultraviolet1x', :require => 'uv'
 
 gem 'sprockets'
+gem 'sass'
 
 group :production do
   gem 'newrelic_rpm'
