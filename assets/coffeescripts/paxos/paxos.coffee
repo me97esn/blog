@@ -1,34 +1,28 @@
 #= require d3.v2
+#= require batman.statemachine
+#= require async.min
 #= require_self
 #= require_tree .
 
 window.Harry = {}
 
-w = 960
-h = 500
-y = d3.scale.ordinal().domain(d3.range(30)).rangePoints([20, w - 20])
+w = 620
+h = 620
+count = 20
+y = d3.scale.ordinal().domain(d3.range(count)).rangePoints([20, w - 20])
 t = Date.now()
-
-makeSlide = (x0, x1) ->
-  t += 50
-  return ->
-    d3.select(this)
-      .transition()
-      .duration(t - Date.now())
-      .attr("cx", x1)
-      .each "end", makeSlide(x1, x0)
 
 glower = (brighter) ->
   destination = if brighter
-    "rgba(224, 13, 98, 1)"
+    "rgb(158, 0, 250)"
   else
-    "rgba(224, 13, 98, 0.6)"
+    "rgb(98, 0, 156)"
 
   return (selection) ->
     started = false
 
     selection.transition()
-      .duration(2000)
+      .duration(1000)
       .ease('qubic')
       .attr('fill', destination)
       .each "end", ->
@@ -41,11 +35,16 @@ svg = d3.select("#first")
   .attr("width", w)
   .attr("height", h)
 
+radiusStep = (Math.PI * 2) / count
+yScale = d3.scale.linear().domain([-1, 1]).range([20, h - 20])
+xScale = d3.scale.linear().domain([-1, 1]).range([20, w - 20])
 circle = svg.selectAll("circle")
     .data(y.domain())
   .enter()
     .append("svg:circle")
     .attr("r", 16)
-    .attr("cx", y)
-    .attr("cy", -> Math.random() * (h - 40) + 20)
+    .attr("cx", (d) -> xScale Math.sin(d * radiusStep))
+    .attr("cy", (d) -> yScale Math.cos(d * radiusStep))
+    .attr("fill", "rgb(98, 0, 156)")
     .call(glower(true))
+

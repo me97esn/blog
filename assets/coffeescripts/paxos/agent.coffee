@@ -1,1 +1,0 @@
-class Harry.Agent
