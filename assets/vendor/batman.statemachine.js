@@ -1,4 +1,54 @@
 (function() {
+  var Batman,
+    __slice = [].slice;
+
+  Batman = function() {
+    var mixins;
+    mixins = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+    return (function(func, args, ctor) {
+      ctor.prototype = func.prototype;
+      var child = new ctor, result = func.apply(child, args);
+      return Object(result) === result ? result : child;
+    })(Batman.Object, mixins, function(){});
+  };
+
+  Batman.version = '0.13.1';
+
+  Batman.config = {
+    pathPrefix: '/',
+    viewPrefix: 'views',
+    fetchRemoteViews: true,
+    usePushState: false,
+    minificationErrors: true
+  };
+
+  (Batman.container = (function() {
+    return this;
+  })()).Batman = Batman;
+
+  if (typeof define === 'function') {
+    define('batman', [], function() {
+      return Batman;
+    });
+  }
+
+  Batman.exportHelpers = function(onto) {
+    var k, _i, _len, _ref;
+    _ref = ['mixin', 'extend', 'unmixin', 'redirect', 'typeOf', 'redirect', 'setImmediate', 'clearImmediate'];
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      k = _ref[_i];
+      onto["$" + k] = Batman[k];
+    }
+    return onto;
+  };
+
+  Batman.exportGlobals = function() {
+    return Batman.exportHelpers(Batman.container);
+  };
+
+}).call(this);
+
+(function() {
   var _Batman;
 
   Batman._Batman = _Batman = (function() {
@@ -107,6 +157,347 @@
     return _Batman;
 
   })();
+
+}).call(this);
+
+(function() {
+  var chr, _encodedChars, _encodedCharsPattern, _entityMap, _implementImmediates, _objectToString, _unsafeChars, _unsafeCharsPattern,
+    __slice = [].slice,
+    __hasProp = {}.hasOwnProperty,
+    __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
+
+  Batman.typeOf = function(object) {
+    if (typeof object === 'undefined') {
+      return "Undefined";
+    }
+    return _objectToString.call(object).slice(8, -1);
+  };
+
+  _objectToString = Object.prototype.toString;
+
+  Batman.extend = function() {
+    var key, object, objects, to, value, _i, _len;
+    to = arguments[0], objects = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+    for (_i = 0, _len = objects.length; _i < _len; _i++) {
+      object = objects[_i];
+      for (key in object) {
+        value = object[key];
+        to[key] = value;
+      }
+    }
+    return to;
+  };
+
+  Batman.mixin = function() {
+    var hasSet, key, mixin, mixins, to, value, _i, _len;
+    to = arguments[0], mixins = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+    hasSet = typeof to.set === 'function';
+    for (_i = 0, _len = mixins.length; _i < _len; _i++) {
+      mixin = mixins[_i];
+      if (Batman.typeOf(mixin) !== 'Object') {
+        continue;
+      }
+      for (key in mixin) {
+        if (!__hasProp.call(mixin, key)) continue;
+        value = mixin[key];
+        if (key === 'initialize' || key === 'uninitialize' || key === 'prototype') {
+          continue;
+        }
+        if (hasSet) {
+          to.set(key, value);
+        } else if (to.nodeName != null) {
+          Batman.data(to, key, value);
+        } else {
+          to[key] = value;
+        }
+      }
+      if (typeof mixin.initialize === 'function') {
+        mixin.initialize.call(to);
+      }
+    }
+    return to;
+  };
+
+  Batman.unmixin = function() {
+    var from, key, mixin, mixins, _i, _len;
+    from = arguments[0], mixins = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
+    for (_i = 0, _len = mixins.length; _i < _len; _i++) {
+      mixin = mixins[_i];
+      for (key in mixin) {
+        if (key === 'initialize' || key === 'uninitialize') {
+          continue;
+        }
+        delete from[key];
+      }
+      if (typeof mixin.uninitialize === 'function') {
+        mixin.uninitialize.call(from);
+      }
+    }
+    return from;
+  };
+
+  Batman._functionName = Batman.functionName = function(f) {
+    var _ref;
+    if (f.__name__) {
+      return f.__name__;
+    }
+    if (f.name) {
+      return f.name;
+    }
+    return (_ref = f.toString().match(/\W*function\s+([\w\$]+)\(/)) != null ? _ref[1] : void 0;
+  };
+
+  Batman._isChildOf = Batman.isChildOf = function(parentNode, childNode) {
+    var node;
+    node = childNode.parentNode;
+    while (node) {
+      if (node === parentNode) {
+        return true;
+      }
+      node = node.parentNode;
+    }
+    return false;
+  };
+
+  _implementImmediates = function(container) {
+    var canUsePostMessage, count, functions, getHandle, handler, prefix, tasks;
+    canUsePostMessage = function() {
+      var async, oldMessage;
+      if (!container.postMessage) {
+        return false;
+      }
+      async = true;
+      oldMessage = container.onmessage;
+      container.onmessage = function() {
+        return async = false;
+      };
+      container.postMessage("", "*");
+      container.onmessage = oldMessage;
+      return async;
+    };
+    tasks = new Batman.SimpleHash;
+    count = 0;
+    getHandle = function() {
+      return "go" + (++count);
+    };
+    if (container.setImmediate && container.clearImmediate) {
+      Batman.setImmediate = container.setImmediate;
+      return Batman.clearImmediate = container.clearImmediate;
+    } else if (canUsePostMessage()) {
+      prefix = 'com.batman.';
+      functions = new Batman.SimpleHash;
+      handler = function(e) {
+        var handle, _base;
+        if (!~e.data.search(prefix)) {
+          return;
+        }
+        handle = e.data.substring(prefix.length);
+        return typeof (_base = tasks.unset(handle)) === "function" ? _base() : void 0;
+      };
+      if (container.addEventListener) {
+        container.addEventListener('message', handler, false);
+      } else {
+        container.attachEvent('onmessage', handler);
+      }
+      Batman.setImmediate = function(f) {
+        var handle;
+        tasks.set(handle = getHandle(), f);
+        container.postMessage(prefix + handle, "*");
+        return handle;
+      };
+      return Batman.clearImmediate = function(handle) {
+        return tasks.unset(handle);
+      };
+    } else if (typeof document !== 'undefined' && __indexOf.call(document.createElement("script"), "onreadystatechange") >= 0) {
+      Batman.setImmediate = function(f) {
+        var handle, script;
+        handle = getHandle();
+        script = document.createElement("script");
+        script.onreadystatechange = function() {
+          var _base;
+          if (typeof (_base = tasks.get(handle)) === "function") {
+            _base();
+          }
+          script.onreadystatechange = null;
+          script.parentNode.removeChild(script);
+          return script = null;
+        };
+        document.documentElement.appendChild(script);
+        return handle;
+      };
+      return Batman.clearImmediate = function(handle) {
+        return tasks.unset(handle);
+      };
+    } else if (typeof process !== "undefined" && process !== null ? process.nextTick : void 0) {
+      functions = {};
+      Batman.setImmediate = function(f) {
+        var handle;
+        handle = getHandle();
+        functions[handle] = f;
+        process.nextTick(function() {
+          if (typeof functions[handle] === "function") {
+            functions[handle]();
+          }
+          return delete functions[handle];
+        });
+        return handle;
+      };
+      return Batman.clearImmediate = function(handle) {
+        return delete functions[handle];
+      };
+    } else {
+      Batman.setImmediate = function(f) {
+        return setTimeout(f, 0);
+      };
+      return Batman.clearImmediate = function(handle) {
+        return clearTimeout(handle);
+      };
+    }
+  };
+
+  Batman.setImmediate = function() {
+    _implementImmediates(Batman.container);
+    return Batman.setImmediate.apply(this, arguments);
+  };
+
+  Batman.clearImmediate = function() {
+    _implementImmediates(Batman.container);
+    return Batman.clearImmediate.apply(this, arguments);
+  };
+
+  Batman.forEach = function(container, iterator, ctx) {
+    var e, i, k, v, _i, _len, _results, _results1;
+    if (container.forEach) {
+      return container.forEach(iterator, ctx);
+    } else if (container.indexOf) {
+      _results = [];
+      for (i = _i = 0, _len = container.length; _i < _len; i = ++_i) {
+        e = container[i];
+        _results.push(iterator.call(ctx, e, i, container));
+      }
+      return _results;
+    } else {
+      _results1 = [];
+      for (k in container) {
+        v = container[k];
+        _results1.push(iterator.call(ctx, k, v, container));
+      }
+      return _results1;
+    }
+  };
+
+  Batman.objectHasKey = function(object, key) {
+    if (typeof object.hasKey === 'function') {
+      return object.hasKey(key);
+    } else {
+      return key in object;
+    }
+  };
+
+  Batman.contains = function(container, item) {
+    if (container.indexOf) {
+      return __indexOf.call(container, item) >= 0;
+    } else if (typeof container.has === 'function') {
+      return container.has(item);
+    } else {
+      return Batman.objectHasKey(container, item);
+    }
+  };
+
+  Batman.get = function(base, key) {
+    if (typeof base.get === 'function') {
+      return base.get(key);
+    } else {
+      return Batman.Property.forBaseAndKey(base, key).getValue();
+    }
+  };
+
+  Batman.getPath = function(base, segments) {
+    var segment, _i, _len;
+    for (_i = 0, _len = segments.length; _i < _len; _i++) {
+      segment = segments[_i];
+      if (base != null) {
+        base = Batman.get(base, segment);
+        if (base == null) {
+          return base;
+        }
+      } else {
+        return void 0;
+      }
+    }
+    return base;
+  };
+
+  _entityMap = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&#34;",
+    "'": "&#39;"
+  };
+
+  _unsafeChars = [];
+
+  _encodedChars = [];
+
+  for (chr in _entityMap) {
+    _unsafeChars.push(chr);
+    _encodedChars.push(_entityMap[chr]);
+  }
+
+  _unsafeCharsPattern = new RegExp("[" + (_unsafeChars.join('')) + "]", "g");
+
+  _encodedCharsPattern = new RegExp("(" + (_encodedChars.join('|')) + ")", "g");
+
+  Batman.escapeHTML = (function() {
+    return function(s) {
+      return ("" + s).replace(_unsafeCharsPattern, function(c) {
+        return _entityMap[c];
+      });
+    };
+  })();
+
+  Batman.unescapeHTML = (function() {
+    return function(s) {
+      var node;
+      if (s == null) {
+        return;
+      }
+      node = Batman._unescapeHTMLNode || (Batman._unescapeHTMLNode = document.createElement('DIV'));
+      node.innerHTML = s;
+      if (node.innerText != null) {
+        return node.innerText;
+      } else {
+        return node.textContent;
+      }
+    };
+  })();
+
+  Batman.translate = function(x, values) {
+    if (values == null) {
+      values = {};
+    }
+    return Batman.helpers.interpolate(Batman.get(Batman.translate.messages, x), values);
+  };
+
+  Batman.translate.messages = {};
+
+  Batman.t = function() {
+    return Batman.translate.apply(Batman, arguments);
+  };
+
+  Batman.redirect = function(url) {
+    var _ref;
+    return (_ref = Batman.navigator) != null ? _ref.redirect(url) : void 0;
+  };
+
+  Batman.initializeObject = function(object) {
+    if (object._batman != null) {
+      return object._batman.check(object);
+    } else {
+      return object._batman = new Batman._Batman(object);
+    }
+  };
 
 }).call(this);
 
@@ -491,8 +882,6 @@
 
     Batman.extend(SimpleHash.prototype, Batman.Enumerable);
 
-    SimpleHash.prototype.propertyClass = Batman.Property;
-
     SimpleHash.prototype.hasKey = function(key) {
       var pair, pairs, _i, _len;
       if (this.objectKey(key)) {
@@ -735,10 +1124,22 @@
   Batman.SimpleSet = (function() {
 
     function SimpleSet() {
+      var item, itemsToAdd;
       this._storage = [];
       this.length = 0;
-      if (arguments.length > 0) {
-        this.add.apply(this, arguments);
+      itemsToAdd = (function() {
+        var _i, _len, _results;
+        _results = [];
+        for (_i = 0, _len = arguments.length; _i < _len; _i++) {
+          item = arguments[_i];
+          if (item != null) {
+            _results.push(item);
+          }
+        }
+        return _results;
+      }).apply(this, arguments);
+      if (itemsToAdd.length > 0) {
+        this.add.apply(this, itemsToAdd);
       }
     }
 
@@ -900,6 +1301,105 @@
 }).call(this);
 
 (function() {
+  var developer;
+
+  Batman.developer = {
+    suppressed: false,
+    DevelopmentError: (function() {
+      var DevelopmentError;
+      DevelopmentError = function(message) {
+        this.message = message;
+        return this.name = "DevelopmentError";
+      };
+      DevelopmentError.prototype = Error.prototype;
+      return DevelopmentError;
+    })(),
+    _ie_console: function(f, args) {
+      var arg, _i, _len, _results;
+      if (args.length !== 1) {
+        if (typeof console !== "undefined" && console !== null) {
+          console[f]("..." + f + " of " + args.length + " items...");
+        }
+      }
+      _results = [];
+      for (_i = 0, _len = args.length; _i < _len; _i++) {
+        arg = args[_i];
+        _results.push(typeof console !== "undefined" && console !== null ? console[f](arg) : void 0);
+      }
+      return _results;
+    },
+    suppress: function(f) {
+      developer.suppressed = true;
+      if (f) {
+        f();
+        return developer.suppressed = false;
+      }
+    },
+    unsuppress: function() {
+      return developer.suppressed = false;
+    },
+    log: function() {
+      if (developer.suppressed || !((typeof console !== "undefined" && console !== null ? console.log : void 0) != null)) {
+        return;
+      }
+      if (console.log.apply) {
+        return console.log.apply(console, arguments);
+      } else {
+        return developer._ie_console("log", arguments);
+      }
+    },
+    warn: function() {
+      if (developer.suppressed || !((typeof console !== "undefined" && console !== null ? console.warn : void 0) != null)) {
+        return;
+      }
+      if (console.warn.apply) {
+        return console.warn.apply(console, arguments);
+      } else {
+        return developer._ie_console("warn", arguments);
+      }
+    },
+    error: function(message) {
+      throw new developer.DevelopmentError(message);
+    },
+    assert: function(result, message) {
+      if (!result) {
+        return developer.error(message);
+      }
+    },
+    "do": function(f) {
+      if (!developer.suppressed) {
+        return f();
+      }
+    },
+    addFilters: function() {
+      return Batman.extend(Batman.Filters, {
+        log: function(value, key) {
+          if (typeof console !== "undefined" && console !== null) {
+            if (typeof console.log === "function") {
+              console.log(arguments);
+            }
+          }
+          return value;
+        },
+        logStack: function(value) {
+          if (typeof console !== "undefined" && console !== null) {
+            if (typeof console.log === "function") {
+              console.log(developer.currentFilterStack);
+            }
+          }
+          return value;
+        }
+      });
+    }
+  };
+
+  developer = Batman.developer;
+
+  Batman.developer.assert((function() {}).bind, "Error! Batman needs Function.bind to work! Please shim it using something like es5-shim or augmentjs!");
+
+}).call(this);
+
+(function() {
   var SOURCE_TRACKER_STACK, SOURCE_TRACKER_STACK_VALID,
     __slice = [].slice;
 
@@ -912,6 +1412,8 @@
     Batman.mixin(Property.prototype, Batman.EventEmitter);
 
     Property._sourceTrackerStack = SOURCE_TRACKER_STACK;
+
+    Property._sourceTrackerStackValid = SOURCE_TRACKER_STACK_VALID;
 
     Property.defaultAccessor = {
       get: function(key) {
@@ -980,12 +1482,12 @@
       if (!obj.isEventEmitter) {
         return;
       }
-      if (!SOURCE_TRACKER_STACK_VALID) {
+      if (SOURCE_TRACKER_STACK_VALID) {
+        set = SOURCE_TRACKER_STACK[SOURCE_TRACKER_STACK.length - 1];
+      } else {
         set = [];
         SOURCE_TRACKER_STACK.push(set);
         SOURCE_TRACKER_STACK_VALID = true;
-      } else {
-        set = SOURCE_TRACKER_STACK[SOURCE_TRACKER_STACK.length - 1];
       }
       if (set != null) {
         set.push(obj);
@@ -994,23 +1496,27 @@
     };
 
     Property.pushSourceTracker = function() {
-      if (!SOURCE_TRACKER_STACK_VALID) {
-        return SOURCE_TRACKER_STACK.push([]);
-      } else {
+      if (SOURCE_TRACKER_STACK_VALID) {
         return SOURCE_TRACKER_STACK_VALID = false;
+      } else {
+        return SOURCE_TRACKER_STACK.push([]);
       }
     };
 
     Property.popSourceTracker = function() {
-      if (!SOURCE_TRACKER_STACK_VALID) {
+      if (SOURCE_TRACKER_STACK_VALID) {
+        return SOURCE_TRACKER_STACK.pop();
+      } else {
         SOURCE_TRACKER_STACK_VALID = true;
         return void 0;
-      } else {
-        return SOURCE_TRACKER_STACK.pop();
       }
     };
 
     Property.pushDummySourceTracker = function() {
+      if (!SOURCE_TRACKER_STACK_VALID) {
+        SOURCE_TRACKER_STACK.push([]);
+        SOURCE_TRACKER_STACK_VALID = true;
+      }
       return SOURCE_TRACKER_STACK.push(null);
     };
 
@@ -1712,6 +2218,329 @@
   })(Object);
 
   Batman.Object = BatmanObject;
+
+}).call(this);
+
+(function() {
+  var __slice = [].slice,
+    __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; };
+
+  Batman.Inflector = (function() {
+
+    Inflector.prototype.plural = function(regex, replacement) {
+      return this._plural.unshift([regex, replacement]);
+    };
+
+    Inflector.prototype.singular = function(regex, replacement) {
+      return this._singular.unshift([regex, replacement]);
+    };
+
+    Inflector.prototype.human = function(regex, replacement) {
+      return this._human.unshift([regex, replacement]);
+    };
+
+    Inflector.prototype.uncountable = function() {
+      var strings;
+      strings = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+      return this._uncountable = this._uncountable.concat(strings.map(function(x) {
+        return new RegExp("" + x + "$", 'i');
+      }));
+    };
+
+    Inflector.prototype.irregular = function(singular, plural) {
+      if (singular.charAt(0) === plural.charAt(0)) {
+        this.plural(new RegExp("(" + (singular.charAt(0)) + ")" + (singular.slice(1)) + "$", "i"), "$1" + plural.slice(1));
+        this.plural(new RegExp("(" + (singular.charAt(0)) + ")" + (plural.slice(1)) + "$", "i"), "$1" + plural.slice(1));
+        return this.singular(new RegExp("(" + (plural.charAt(0)) + ")" + (plural.slice(1)) + "$", "i"), "$1" + singular.slice(1));
+      } else {
+        this.plural(new RegExp("" + singular + "$", 'i'), plural);
+        this.plural(new RegExp("" + plural + "$", 'i'), plural);
+        return this.singular(new RegExp("" + plural + "$", 'i'), singular);
+      }
+    };
+
+    function Inflector() {
+      this._plural = [];
+      this._singular = [];
+      this._uncountable = [];
+      this._human = [];
+    }
+
+    Inflector.prototype.ordinalize = function(number) {
+      var absNumber, _ref;
+      absNumber = Math.abs(parseInt(number));
+      if (_ref = absNumber % 100, __indexOf.call([11, 12, 13], _ref) >= 0) {
+        return number + "th";
+      } else {
+        switch (absNumber % 10) {
+          case 1:
+            return number + "st";
+          case 2:
+            return number + "nd";
+          case 3:
+            return number + "rd";
+          default:
+            return number + "th";
+        }
+      }
+    };
+
+    Inflector.prototype.pluralize = function(word) {
+      var regex, replace_string, uncountableRegex, _i, _j, _len, _len1, _ref, _ref1, _ref2;
+      _ref = this._uncountable;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        uncountableRegex = _ref[_i];
+        if (uncountableRegex.test(word)) {
+          return word;
+        }
+      }
+      _ref1 = this._plural;
+      for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+        _ref2 = _ref1[_j], regex = _ref2[0], replace_string = _ref2[1];
+        if (regex.test(word)) {
+          return word.replace(regex, replace_string);
+        }
+      }
+      return word;
+    };
+
+    Inflector.prototype.singularize = function(word) {
+      var regex, replace_string, uncountableRegex, _i, _j, _len, _len1, _ref, _ref1, _ref2;
+      _ref = this._uncountable;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        uncountableRegex = _ref[_i];
+        if (uncountableRegex.test(word)) {
+          return word;
+        }
+      }
+      _ref1 = this._singular;
+      for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+        _ref2 = _ref1[_j], regex = _ref2[0], replace_string = _ref2[1];
+        if (regex.test(word)) {
+          return word.replace(regex, replace_string);
+        }
+      }
+      return word;
+    };
+
+    Inflector.prototype.humanize = function(word) {
+      var regex, replace_string, _i, _len, _ref, _ref1;
+      _ref = this._human;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        _ref1 = _ref[_i], regex = _ref1[0], replace_string = _ref1[1];
+        if (regex.test(word)) {
+          return word.replace(regex, replace_string);
+        }
+      }
+      return word;
+    };
+
+    return Inflector;
+
+  })();
+
+}).call(this);
+
+(function() {
+  var Inflector, camelize_rx, capitalize_rx, humanize_rx1, humanize_rx2, humanize_rx3, underscore_rx1, underscore_rx2;
+
+  camelize_rx = /(?:^|_|\-)(.)/g;
+
+  capitalize_rx = /(^|\s)([a-z])/g;
+
+  underscore_rx1 = /([A-Z]+)([A-Z][a-z])/g;
+
+  underscore_rx2 = /([a-z\d])([A-Z])/g;
+
+  humanize_rx1 = /_id$/;
+
+  humanize_rx2 = /_|-/g;
+
+  humanize_rx3 = /^\w/g;
+
+  Batman.helpers = {
+    ordinalize: function() {
+      return Batman.helpers.inflector.ordinalize.apply(Batman.helpers.inflector, arguments);
+    },
+    singularize: function() {
+      return Batman.helpers.inflector.singularize.apply(Batman.helpers.inflector, arguments);
+    },
+    pluralize: function(count, singular, plural, includeCount) {
+      var result;
+      if (includeCount == null) {
+        includeCount = true;
+      }
+      if (arguments.length < 2) {
+        return Batman.helpers.inflector.pluralize(count);
+      } else {
+        result = +count === 1 ? singular : plural || Batman.helpers.inflector.pluralize(singular);
+        if (includeCount) {
+          result = ("" + (count || 0) + " ") + result;
+        }
+        return result;
+      }
+    },
+    camelize: function(string, firstLetterLower) {
+      string = string.replace(camelize_rx, function(str, p1) {
+        return p1.toUpperCase();
+      });
+      if (firstLetterLower) {
+        return string.substr(0, 1).toLowerCase() + string.substr(1);
+      } else {
+        return string;
+      }
+    },
+    underscore: function(string) {
+      return string.replace(underscore_rx1, '$1_$2').replace(underscore_rx2, '$1_$2').replace('-', '_').toLowerCase();
+    },
+    capitalize: function(string) {
+      return string.replace(capitalize_rx, function(m, p1, p2) {
+        return p1 + p2.toUpperCase();
+      });
+    },
+    trim: function(string) {
+      if (string) {
+        return string.trim();
+      } else {
+        return "";
+      }
+    },
+    interpolate: function(stringOrObject, keys) {
+      var key, string, value;
+      if (typeof stringOrObject === 'object') {
+        string = stringOrObject[keys.count];
+        if (!string) {
+          string = stringOrObject['other'];
+        }
+      } else {
+        string = stringOrObject;
+      }
+      for (key in keys) {
+        value = keys[key];
+        string = string.replace(new RegExp("%\\{" + key + "\\}", "g"), value);
+      }
+      return string;
+    },
+    humanize: function(string) {
+      string = Batman.helpers.underscore(string);
+      string = Batman.helpers.inflector.humanize(string);
+      return string.replace(humanize_rx1, '').replace(humanize_rx2, ' ').replace(humanize_rx3, function(match) {
+        return match.toUpperCase();
+      });
+    }
+  };
+
+  Inflector = new Batman.Inflector;
+
+  Batman.helpers.inflector = Inflector;
+
+  Inflector.plural(/$/, 's');
+
+  Inflector.plural(/s$/i, 's');
+
+  Inflector.plural(/(ax|test)is$/i, '$1es');
+
+  Inflector.plural(/(octop|vir)us$/i, '$1i');
+
+  Inflector.plural(/(octop|vir)i$/i, '$1i');
+
+  Inflector.plural(/(alias|status)$/i, '$1es');
+
+  Inflector.plural(/(bu)s$/i, '$1ses');
+
+  Inflector.plural(/(buffal|tomat)o$/i, '$1oes');
+
+  Inflector.plural(/([ti])um$/i, '$1a');
+
+  Inflector.plural(/([ti])a$/i, '$1a');
+
+  Inflector.plural(/sis$/i, 'ses');
+
+  Inflector.plural(/(?:([^f])fe|([lr])f)$/i, '$1$2ves');
+
+  Inflector.plural(/(hive)$/i, '$1s');
+
+  Inflector.plural(/([^aeiouy]|qu)y$/i, '$1ies');
+
+  Inflector.plural(/(x|ch|ss|sh)$/i, '$1es');
+
+  Inflector.plural(/(matr|vert|ind)(?:ix|ex)$/i, '$1ices');
+
+  Inflector.plural(/([m|l])ouse$/i, '$1ice');
+
+  Inflector.plural(/([m|l])ice$/i, '$1ice');
+
+  Inflector.plural(/^(ox)$/i, '$1en');
+
+  Inflector.plural(/^(oxen)$/i, '$1');
+
+  Inflector.plural(/(quiz)$/i, '$1zes');
+
+  Inflector.singular(/s$/i, '');
+
+  Inflector.singular(/(n)ews$/i, '$1ews');
+
+  Inflector.singular(/([ti])a$/i, '$1um');
+
+  Inflector.singular(/((a)naly|(b)a|(d)iagno|(p)arenthe|(p)rogno|(s)ynop|(t)he)ses$/i, '$1$2sis');
+
+  Inflector.singular(/(^analy)ses$/i, '$1sis');
+
+  Inflector.singular(/([^f])ves$/i, '$1fe');
+
+  Inflector.singular(/(hive)s$/i, '$1');
+
+  Inflector.singular(/(tive)s$/i, '$1');
+
+  Inflector.singular(/([lr])ves$/i, '$1f');
+
+  Inflector.singular(/([^aeiouy]|qu)ies$/i, '$1y');
+
+  Inflector.singular(/(s)eries$/i, '$1eries');
+
+  Inflector.singular(/(m)ovies$/i, '$1ovie');
+
+  Inflector.singular(/(x|ch|ss|sh)es$/i, '$1');
+
+  Inflector.singular(/([m|l])ice$/i, '$1ouse');
+
+  Inflector.singular(/(bus)es$/i, '$1');
+
+  Inflector.singular(/(o)es$/i, '$1');
+
+  Inflector.singular(/(shoe)s$/i, '$1');
+
+  Inflector.singular(/(cris|ax|test)es$/i, '$1is');
+
+  Inflector.singular(/(octop|vir)i$/i, '$1us');
+
+  Inflector.singular(/(alias|status)es$/i, '$1');
+
+  Inflector.singular(/^(ox)en/i, '$1');
+
+  Inflector.singular(/(vert|ind)ices$/i, '$1ex');
+
+  Inflector.singular(/(matr)ices$/i, '$1ix');
+
+  Inflector.singular(/(quiz)zes$/i, '$1');
+
+  Inflector.singular(/(database)s$/i, '$1');
+
+  Inflector.irregular('person', 'people');
+
+  Inflector.irregular('man', 'men');
+
+  Inflector.irregular('child', 'children');
+
+  Inflector.irregular('sex', 'sexes');
+
+  Inflector.irregular('move', 'moves');
+
+  Inflector.irregular('cow', 'kine');
+
+  Inflector.irregular('zombie', 'zombies');
+
+  Inflector.uncountable('equipment', 'information', 'rice', 'money', 'species', 'series', 'fish', 'sheep', 'jeans');
 
 }).call(this);
 
