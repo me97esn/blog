@@ -63,6 +63,7 @@ class Harry.Replica extends Batman.StateMachine
 
   prepareReceived: (message) ->
     response = if message.sequenceNumber > @highestSeenSequenceNumber
+      @highestSeenSequenceNumber = message.sequenceNumber
       new Harry.PromiseMessage()
     else
       new Harry.RejectProposalMessage(@highestSeenSequenceNumber)

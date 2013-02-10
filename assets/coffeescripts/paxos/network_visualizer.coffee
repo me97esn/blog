@@ -37,7 +37,7 @@ class Harry.NetworkVisualizer
     @attachMessageHandlers()
 
     propose = =>
-      replica = Math.round(Math.random() * @network.length)
+      replica = Math.round(Math.random() * (@network.length - 1))
       @network.replicas[replica].setValue(10)
       setTimeout(propose, 7000 + Math.floor(Math.random() * 1000))
 
