@@ -1,18 +1,24 @@
 class Harry.Network extends Batman.Object
-  constructor: (@length, quorum) ->
-    super()
+  baseNetworkDelay: 1000
+  networkDelayVariability: 2
+
+  constructor: (@length, @baseNetworkDelay = 1000, @networkDelayVariability = 2) ->
+    super
     @quorum ?= (@length / 2) + 1
     @replicas = {}
     @nextMessageID = 0
+
     for i in [0...length]
       @replicas[i] = new Harry.Replica(i, @quorum, @)
+
+    @maxAdditionalNetworkDelay = @networkDelayVariability * @baseNetworkDelay
 
   sendMessage: (originID, destinationID, message) ->
     if @canSend(originID, destinationID)
       message.id = ++@nextMessageID
       message.sender = originID
       message.destination = destinationID
-      flightTime = 2000 + Math.floor(Math.random() * 1000)
+      flightTime = @baseNetworkDelay + Math.floor(Math.random() * @maxAdditionalNetworkDelay)
       @_deliverMessageIn(flightTime, message)
 
   broadcastMessage: (originID, message) ->

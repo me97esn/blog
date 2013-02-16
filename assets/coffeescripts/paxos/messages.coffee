@@ -30,3 +30,14 @@ class Harry.QueryMessage extends Harry.AbstractMessage
 class Harry.QueryResponseMessage extends Harry.AbstractMessage
   constructor: (@sequenceNumber, @value) ->
   type: 7
+
+class Harry.SetValueMessage extends Harry.AbstractMessage
+  constructor: (@value) ->
+  type: 8
+
+class Harry.SetValueResultMessage extends Harry.AbstractMessage
+  constructor: (@error) ->
+  type: 9
+
+class Harry.GetValueMessage extends Harry.AbstractMessage
+  type: 10
