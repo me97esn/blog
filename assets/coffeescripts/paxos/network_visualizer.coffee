@@ -17,6 +17,9 @@ glower = (goBrighter) ->
         selection.call glower(!goBrighter)
 
 class Harry.NetworkVisualizer
+  @messageTypeColor: d3.scale.category10()
+  @valueScale: d3.scale.category10()
+
   width: 660
   height: 620
   labels: true
@@ -37,8 +40,6 @@ class Harry.NetworkVisualizer
     @replicaRadiusStep = (Math.PI * 2) / @count
     @entityYScale = d3.scale.linear().domain([-1, 1]).range([20, @height - 20])
     @entityXScale = d3.scale.linear().domain([-1, 1]).range([20, @width - 60])
-    @valueScale = d3.scale.category10()
-    @messageTypeColor = d3.scale.category10()
 
     @drawReplicas()
     @drawReplicaLabels()
@@ -46,14 +47,15 @@ class Harry.NetworkVisualizer
     @attachMessageHandlers()
     @attachValueHandlers()
 
+    @onStart?(@, @network)
+
     for client in @clients
       client.propose()
 
   drawReplicas: ->
-    replicas = (value for key, value of @network.replicas)
     @replicaCircles = @svg.selectAll("circle.replica")
-        .data(replicas)
-        .attr("fill", (replica) => @valueScale(replica.value))
+        .data(@network.replicas)
+        .attr("fill", (replica) => @constructor.valueScale(replica.value))
 
     @replicaCircles.enter()
         .append("svg:circle")
@@ -64,8 +66,7 @@ class Harry.NetworkVisualizer
 
   drawReplicaLabels: ->
     return unless @labels
-    replicas = (value for key, value of @network.replicas)
-    @sequenceNumberLabels = @svg.selectAll("text.sequence-number-label").data(replicas)
+    @sequenceNumberLabels = @svg.selectAll("text.sequence-number-label").data(@network.replicas)
     @sequenceNumberLabels
       .text((replica) -> replica.highestSeenSequenceNumber)
       .enter()
@@ -75,7 +76,7 @@ class Harry.NetworkVisualizer
         .attr("y", (replica) => @entityY(replica.id) - 8)
         .text((replica) -> replica.highestSeenSequenceNumber)
 
-    @stateLabels = @svg.selectAll("text.state-label").data(replicas)
+    @stateLabels = @svg.selectAll("text.state-label").data(@network.replicas)
     @stateLabels
       .text((replica) -> replica.get('state'))
       .enter()
@@ -85,7 +86,7 @@ class Harry.NetworkVisualizer
         .attr("y", (replica) => @entityY(replica.id) + 16)
         .text((replica) -> replica.get('state'))
 
-    @valueLabels = @svg.selectAll("text.value-label").data(replicas)
+    @valueLabels = @svg.selectAll("text.value-label").data(@network.replicas)
     @valueLabels
       .text((replica) -> replica.get('value'))
       .enter()
@@ -119,7 +120,7 @@ class Harry.NetworkVisualizer
           .attr("r", 8)
           .attr("cx", (message) => @entityX(message.sender))
           .attr("cy", (message) => @entityY(message.sender))
-          .attr("fill", (message) => @messageTypeColor(message.type))
+          .attr("fill", (message) => @constructor.messageTypeColor(message.type))
           .transition()
             .duration(flightTime)
             .attr("cx", (message) => @entityX(message.destination))
@@ -134,14 +135,13 @@ class Harry.NetworkVisualizer
       @drawReplicas()
       @drawReplicaLabels()
 
-    for id, replica of @network.replicas
-      do (replica) =>
-        for key in ['state', 'highestSeenSequenceNumber']
-          replica.observe key, redraw
+    @network.replicas.forEach (replica) =>
+      for key in ['state', 'highestSeenSequenceNumber']
+        replica.observe key, redraw
 
-        replica.observe 'value', =>
-          redraw()
-          @emitValueChange(replica)
+      replica.observe 'value', =>
+        redraw()
+        @emitValueChange(replica)
 
   emitValueChange: (replica) ->
     #TODO: z index below replica
@@ -166,12 +166,12 @@ class Harry.NetworkVisualizer
     position = if id == -1
       0
     else
-      Math.sin(id * @replicaRadiusStep)
+      Math.cos(id * @replicaRadiusStep)
     @entityXScale(position)
 
   entityY: (id) =>
     position = if id == -1
       0
     else
-      Math.cos(id * @replicaRadiusStep)
+      Math.sin(id * @replicaRadiusStep)
     @entityYScale(position)

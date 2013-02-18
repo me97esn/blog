@@ -7,6 +7,10 @@ class Harry.Replica extends Batman.StateMachine
     acceptSucceeded: {'awaiting-commits': 'idle'}
     proposalFailed: {'awaiting-promises': 'idle'}
     acceptFailed: {'awaiting-commits': 'idle'}
+    mute:
+      from: ['idle', 'awaiting-promises', 'awaiting-commits']
+      to: 'muted'
+    unmute: {muted: 'idle'}
 
   @::mixin Harry.NetworkMember
 

@@ -12,7 +12,11 @@
 client_only = new Harry.NetworkVisualizer
   selector: "#client_demo"
   network: new Harry.Network(1)
+  width: 300
+  height: 100
   labels: false
   proposeEvery: 2000
   baseNetworkDelay: 800
   networkDelayVariability: 0
+  onStart: (visualization, network) ->
+    network.replicas[0].startTransition('mute')
