@@ -20,8 +20,9 @@ class Harry.NetworkVisualizer
   @messageTypeColor: d3.scale.category10()
   @valueScale: d3.scale.category10()
 
-  width: 660
+  width: 720
   height: 620
+  clientMargin: 10
   labels: true
   nextValue: 0
   proposeEvery: 10000
@@ -30,16 +31,22 @@ class Harry.NetworkVisualizer
     Batman.extend(@, options)
     @count = @network.length
     @inFlightMessages = []
-    @clients = [new Harry.Client(@proposeEvery, @network)]
 
     @svg = d3.select(@selector)
       .append("svg:svg")
       .attr("width", @width)
       .attr("height", @height)
 
-    @replicaRadiusStep = (Math.PI * 2) / @count
-    @entityYScale = d3.scale.linear().domain([-1, 1]).range([20, @height - 20])
-    @entityXScale = d3.scale.linear().domain([-1, 1]).range([20, @width - 60])
+    @replicaRadiusStep = (Math.PI * 2) / @network.replicas.length
+    @replicaXScale = d3.scale.linear().domain([-1, 1]).range([20 + (16*2) + 30 + (@clientMargin * 2), @width - 60])
+    @replicaYScale = d3.scale.linear().domain([-1, 1]).range([20, @height - 20])
+
+    #@clientXScale  = d3.scale.linear().domain([@network.clients[0].id, @network.clients[@network.clients.length - 1].id]).range([20 + @clientMargin, 20 + @clientMargin])
+    @clientXScale  = => 20 + @clientMargin
+    if @network.clients.length > 1
+      @clientYScale  = d3.scale.linear().domain([@network.clients[0].id, @network.clients[@network.clients.length - 1].id]).range([60 + @clientMargin, @height - (60 + @clientMargin)])
+    else
+      @clientYScale  = => @height / 2 - 10
 
     @drawReplicas()
     @drawReplicaLabels()
@@ -49,8 +56,10 @@ class Harry.NetworkVisualizer
 
     @onStart?(@, @network)
 
-    for client in @clients
-      client.propose()
+    setInterval =>
+      clientID = Math.floor(Math.random() * -1 * @network.clients.length) + 1
+      @network.clients[clientID].propose()
+    , @proposeEvery
 
   drawReplicas: ->
     @replicaCircles = @svg.selectAll("circle.replica")
@@ -98,7 +107,7 @@ class Harry.NetworkVisualizer
 
   drawClients: ->
     @clientCircles = @svg.selectAll("circle.client")
-      .data(@clients)
+      .data(@network.clients)
 
     @clientCircles
       .enter()
@@ -106,8 +115,8 @@ class Harry.NetworkVisualizer
         .attr("fill", "#FF00F0")
         .attr("class", "client")
         .attr("r", 20)
-        .attr("cx", (replica) => @entityXScale(0))
-        .attr("cy", (replica) => @entityYScale(0))
+        .attr("cx", (client) => @entityX(client.id))
+        .attr("cy", (client) => @entityY(client.id))
 
   attachMessageHandlers: ->
     @network.on 'messageSent', (message, flightTime) =>
@@ -163,15 +172,13 @@ class Harry.NetworkVisualizer
           .ease()
 
   entityX: (id) =>
-    position = if id == -1
-      0
+    if id < 0
+      @clientXScale(id)
     else
-      Math.cos(id * @replicaRadiusStep)
-    @entityXScale(position)
+      @replicaXScale(Math.sin(id * @replicaRadiusStep))
 
   entityY: (id) =>
-    position = if id == -1
-      0
+    if id < 0
+      @clientYScale(id)
     else
-      Math.sin(id * @replicaRadiusStep)
-    @entityYScale(position)
+      @replicaYScale(Math.cos(id * @replicaRadiusStep + Math.PI))
