@@ -9,7 +9,7 @@ class Harry.Client extends Batman.Object
 
   propose: ->
     @nextValue += 10
-    @sendMessage @replicaIDForMessges(), new Harry.SetValueMessage(@nextValue)
+    @sendMessage @replicaIDForMessages(), new Harry.SetValueMessage(@nextValue)
 
-  replicaIDForMessges: ->
+  replicaIDForMessages: ->
     Math.floor(Math.random() * (@network.replicas.length)) + 1

@@ -10,7 +10,7 @@ class Harry.Network extends Batman.Object
     else
       super(optionsOrReplicaCount)
 
-    @quorum ?= (@replicaCount / 2) + 1
+    @quorum ?= Math.ceil(@replicaCount / 2)
     @maxAdditionalNetworkDelay ?= @networkDelayVariability * @baseNetworkDelay
     @nextMessageID = 0
 

@@ -73,7 +73,7 @@ class Harry.Replica extends Batman.StateMachine
     delete @round
     round.callback? new Error("value not written")
 
-  @::on 'acceptSucceeded', 'proposalSucceeded', ->
+  @::on 'acceptSucceeded', 'proposalSucceeded', 'mute', ->
     clearTimeout(@timeout)
 
   setRequestReceived: (message) ->
@@ -82,7 +82,7 @@ class Harry.Replica extends Batman.StateMachine
 
   promiseReceived: ->
     @round.promisesReceived += 1
-    if @round.promisesReceived > @quorum
+    if @round.promisesReceived >= @quorum
       @startTransition 'proposalSucceeded'
 
   promiseRejectionReceived: ->
@@ -90,7 +90,7 @@ class Harry.Replica extends Batman.StateMachine
 
   commitSuccessReceived: ->
     @round.commitsReceived += 1
-    if @round.commitsReceived > @quorum
+    if @round.commitsReceived >= @quorum
       @startTransition('acceptSucceeded')
 
   queryReceived: (message) -> @sendMessage(message.sender, new Harry.QueryResponseMessage(@value))

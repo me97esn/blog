@@ -56,10 +56,12 @@ class Harry.NetworkVisualizer
 
     @onStart?(@, @network)
 
-    setInterval =>
+    propose = =>
       clientID = Math.floor(Math.random() * -1 * @network.clients.length) + 1
       @network.clients[clientID].propose()
-    , @proposeEvery
+
+    setInterval propose, @proposeEvery
+    propose()
 
   drawReplicas: ->
     @replicaCircles = @svg.selectAll("circle.replica")

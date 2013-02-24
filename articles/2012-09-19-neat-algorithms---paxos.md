@@ -38,18 +38,27 @@ Lets get some definitions out of the way so that if you explore the literature o
 
 # The guts
 
-And thus, the basic flow of paxos for setting a new value
+Let's examine the basic flow declared by the Paxos algorithm to set a new value.
 
-1. A client of the system asks that a new value be set.
+ - A client of the Paxos governed system asks that a new value be set.
 
 <div id="client_demo"></div>
 
-2. Any one of the processes can recieve this request from the client. The process that does proposes this new value to the system by sending a `prepare` message to all the other processes it knows of. This `prepare` message holds a sequence number inside it, declaring that the receiving process should prepare to accept a proposal with that sequence number. Each process which receives the `prepare` message can either reply with a `promise` message or nothing at all. 
+ - Any one of the processes can recieve this request from the client. The process that does proposes this new value to the system by sending a `prepare` message to all the other processes it knows of.
 
-3. These receiving processes make the one and only critical check in the system: that they've never seen a sequence number higher than the one held in the incoming `prepare` message.
+<div id="prepare_demo"></div>
 
-Paxos solves the problem of consensus through time by taking hold of time its self inside the algorithm. Every new submitted value to the system must under go a "round" of Paxos to become the new accepted value, and each round gets assigned a sequential round number. As long as those round numbers go up, a process in the system can identify in what order the messages it received were created. In paxos, we can use this ordering associated with the messages to determine authority and accept-ability.
+This `prepare` message holds a sequence number inside it, declaring that the receiving process should prepare to accept a proposal with that sequence number. Each process which receives the `prepare` message can either reply with a `promise` message or nothing at all.
 
+ - These receiving processes make the critical check in the system: that they've never seen a sequence number higher than the one held in the incoming `prepare` message. If they haven't, then they can be sure that this is the newest proposal, and promise that they'll accept it. If they have seen something higher, they know there is a newer proposal out on the loose, and can reply telling the out-of-date proposer that they are as such. 
+
+<div id="promise_demo"></div>
+
+Paxos solves the problem of consensus over time by taking hold of time itself. Every time a process submits a value the system they associate with it a strictly increasing sequence number and associate the `prepare` (and as we'll see later, `accept`) messages with it. Using this number, a process in the system can identify in what order the messages it received were created, and apply temporal precedence.
+
+ - The proposing process waits for the other processes to promise to accept only its proposal or a higher numbered one. Upon receiving promises from a majority of processes, the proposing process issues an `accept` message decreeing that they now store the proposed value associated with the sequence number in the proposal.
+
+<div id="accept_demo"></div>
 
 
 <script src="/assets/paxos/paxos.js" type="text/javascript"></script>
