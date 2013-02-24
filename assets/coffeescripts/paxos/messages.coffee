@@ -20,10 +20,6 @@ class Harry.AcceptMessage extends Harry.AbstractMessage
   constructor: (@sequenceNumber, @value) -> super
   type: 4
 
-class Harry.CommittedMessage extends Harry.AbstractMessage
-  constructor: (@sequenceNumber) -> super
-  type: 5
-
 class Harry.QueryMessage extends Harry.AbstractMessage
   type: 6
 

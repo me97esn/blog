@@ -25,7 +25,7 @@ class Harry.NetworkVisualizer
   clientMargin: 10
   labels: true
   nextValue: 0
-  proposeEvery: 10000
+  proposeEvery: 8500
 
   constructor: (options) ->
     Batman.extend(@, options)

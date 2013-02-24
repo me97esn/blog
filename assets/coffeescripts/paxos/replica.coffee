@@ -3,12 +3,10 @@
 class Harry.Replica extends Batman.StateMachine
   @transitions
     startSet: {idle: 'awaiting-promises'}
-    proposalSucceeded: {'awaiting-promises': 'awaiting-commits'}
-    acceptSucceeded: {'awaiting-commits': 'idle'}
+    proposalSucceeded: {'awaiting-promises': 'idle'}
     proposalFailed: {'awaiting-promises': 'idle'}
-    acceptFailed: {'awaiting-commits': 'idle'}
     mute:
-      from: ['idle', 'awaiting-promises', 'awaiting-commits']
+      from: ['idle', 'awaiting-promises']
       to: 'muted'
     unmute: {muted: 'idle'}
 
@@ -26,7 +24,6 @@ class Harry.Replica extends Batman.StateMachine
       callback: callback
       value: value
       promisesReceived: 0
-      commitsReceived: 0
 
     @startTransition 'startSet'
 
@@ -38,9 +35,6 @@ class Harry.Replica extends Batman.StateMachine
         switch message.constructor
           when Harry.PromiseMessage         then @promiseReceived(message)
           when Harry.RejectProposalMessage  then @promiseRejectionReceived(message)
-      when 'awaiting-commits'
-        switch message.constructor
-          when Harry.CommittedMessage       then @commitSuccessReceived(message)
       when 'idle'
         switch message.constructor
           when Harry.QueryMessage           then @queryReceived(message)
@@ -57,23 +51,17 @@ class Harry.Replica extends Batman.StateMachine
 
   @::on 'proposalSucceeded', ->
     @broadcastMessage new Harry.AcceptMessage(@round.sequenceNumber, @round.value)
-
-    @timeout = setTimeout =>
-      @startTransition('acceptFailed') if @get('isAwaiting-commits')
-    , @replyTimeout
-
-  @::on 'acceptSucceeded', ->
     @set 'value', @round.value
     round = @round
     delete @round
     round.callback?()
 
-  @::on 'proposalFailed', 'acceptFailed', ->
+  @::on 'proposalFailed', ->
     round = @round
     delete @round
     round.callback? new Error("value not written")
 
-  @::on 'acceptSucceeded', 'proposalSucceeded', 'mute', ->
+  @::on 'proposalSucceeded', 'mute', ->
     clearTimeout(@timeout)
 
   setRequestReceived: (message) ->
@@ -87,11 +75,6 @@ class Harry.Replica extends Batman.StateMachine
 
   promiseRejectionReceived: ->
     @startTransition 'proposalFailed'
-
-  commitSuccessReceived: ->
-    @round.commitsReceived += 1
-    if @round.commitsReceived >= @quorum
-      @startTransition('acceptSucceeded')
 
   queryReceived: (message) -> @sendMessage(message.sender, new Harry.QueryResponseMessage(@value))
 
@@ -107,4 +90,3 @@ class Harry.Replica extends Batman.StateMachine
     if message.sequenceNumber >= @get('highestSeenSequenceNumber')
       @set('highestSeenSequenceNumber', message.sequenceNumber)
       @set 'value', message.value
-      @sendMessage(message.sender, new Harry.CommittedMessage(@get('highestSeenSequenceNumber')))
