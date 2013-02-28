@@ -1,9 +1,24 @@
 class Harry.AbstractMessage
+  Batman.mixin @prototype, Batman.EventEmitter
+
+  @nextID: 0
+
+  constructor: ->
+    @id = @constructor.nextID++
+
   clone: ->
     clone = new @constructor
-    for own k,v of @
+    for own k,v of @ when k != 'id'
       clone[k] = v
     clone
+
+  hashKey: ->
+    "<Message id:#{@id}>"
+
+  off: (event) ->
+    event = @event(event)
+    event.eachHandler (handler) ->
+      event.removeHandler(handler)
 
 class Harry.PrepareMessage extends Harry.AbstractMessage
   constructor: (@sequenceNumber) -> super

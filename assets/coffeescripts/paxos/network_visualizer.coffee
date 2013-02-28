@@ -1,21 +1,3 @@
-glower = (goBrighter) ->
-  destination = if goBrighter
-    "rgb(158, 0, 250)"
-  else
-    "rgb(98, 0, 156)"
-
-  return (selection) ->
-    started = false
-
-    selection.transition()
-      .duration(1000)
-      .ease('qubic')
-      .attr('fill', destination)
-      .each "end", ->
-        return false if started
-        started = true
-        selection.call glower(!goBrighter)
-
 class Harry.NetworkVisualizer
   @messageTypeColor: d3.scale.category10()
   @valueScale: d3.scale.category10()
@@ -41,7 +23,6 @@ class Harry.NetworkVisualizer
     @replicaXScale = d3.scale.linear().domain([-1, 1]).range([20 + (16*2) + 30 + (@clientMargin * 2), @width - 60])
     @replicaYScale = d3.scale.linear().domain([-1, 1]).range([20, @height - 20])
 
-    #@clientXScale  = d3.scale.linear().domain([@network.clients[0].id, @network.clients[@network.clients.length - 1].id]).range([20 + @clientMargin, 20 + @clientMargin])
     @clientXScale  = => 20 + @clientMargin
     if @network.clients.length > 1
       @clientYScale  = d3.scale.linear().domain([@network.clients[0].id, @network.clients[@network.clients.length - 1].id]).range([60 + @clientMargin, @height - (60 + @clientMargin)])
@@ -51,17 +32,17 @@ class Harry.NetworkVisualizer
     @drawReplicas()
     @drawReplicaLabels()
     @drawClients()
+    @drawPitOfDespair()
     @attachMessageHandlers()
     @attachValueHandlers()
 
     @onStart?(@, @network)
+    setInterval @propose, @proposeEvery
+    @propose()
 
-    propose = =>
-      clientID = Math.floor(Math.random() * -1 * @network.clients.length) + 1
-      @network.clients[clientID].propose()
-
-    setInterval propose, @proposeEvery
-    propose()
+  propose: =>
+    clientID = Math.floor(Math.random() * -1 * @network.clients.length) + 1
+    @network.clients[clientID].propose()
 
   drawReplicas: ->
     @replicaCircles = @svg.selectAll("circle.replica")
@@ -120,26 +101,58 @@ class Harry.NetworkVisualizer
         .attr("cx", (client) => @entityX(client.id))
         .attr("cy", (client) => @entityY(client.id))
 
+  drawMessages: ->
+    selection = @svg.selectAll("circle.message")
+      .data(@network.activeMessages.toArray(), (message) -> message.id)
+
+    selection.enter()
+        .append("svg:circle")
+        .attr("class", "message")
+        .attr("id", (message) -> "paxosmessage-#{message.id}")
+        .attr("r", 8)
+        .attr("cx", (message) => @entityX(message.sender))
+        .attr("cy", (message) => @entityY(message.sender))
+        .attr("fill", (message) => @constructor.messageTypeColor(message.type))
+        .transition()
+          .duration((message) -> message.flightTime)
+          .attr("cx", (message) => @entityX(message.destination))
+          .attr("cy", (message) => @entityY(message.destination))
+          .remove()
+          .each("end", (message) =>
+            message.off('destroyed')
+          ).ease()
+
+    selection.exit()
+      .filter('.destroyed')
+      .transition()
+        .duration(300)
+        .attr("r", 0)
+        .remove()
+        .ease()
+
+  drawPitOfDespair: ->
+
+    arc = d3.svg.arc()
+      .innerRadius(200)
+      .outerRadius(220)
+
+    @svg.selectAll("path.despair-arc")
+      .data([{startAngle: 0, endAngle: Math.PI / 2}])
+      .enter()
+        .append("svg:path")
+          .attr("class", "despair-arc")
+          .attr("transform", (d) => "translate(#{@replicaXScale(0)},#{@replicaYScale(0)})")
+          .attr("d", arc)
+
   attachMessageHandlers: ->
     @network.on 'messageSent', (message, flightTime) =>
-      @inFlightMessages.push(message)
-      @svg.selectAll("circle.message")
-        .data(@inFlightMessages, (message) -> message.id)
-        .enter()
-          .append("svg:circle")
-          .attr("class", "message")
-          .attr("r", 8)
-          .attr("cx", (message) => @entityX(message.sender))
-          .attr("cy", (message) => @entityY(message.sender))
-          .attr("fill", (message) => @constructor.messageTypeColor(message.type))
-          .transition()
-            .duration(flightTime)
-            .attr("cx", (message) => @entityX(message.destination))
-            .attr("cy", (message) => @entityY(message.destination))
-            .remove()
-            .each("end", (message) =>
-              @inFlightMessages.splice(@inFlightMessages.indexOf(message), 1)
-            ).ease()
+      vis = @
+      message.on 'destroyed', ->
+        vis.svg.select("#paxosmessage-#{message.id}")
+          .attr("class", "message destroyed")
+        vis.drawMessages()
+
+      @drawMessages()
 
   attachValueHandlers: ->
     redraw = =>
